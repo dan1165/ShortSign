@@ -1,7 +1,7 @@
 # ShortSign
 
-Sign Apple Shortcuts on a stock iPhone. Pick an unsigned shortcut, sign it
-locally, share it into Shortcuts. No Mac, server, or Apple ID.
+Sign Apple Shortcuts on a stock iPhone. Pick an unsigned or signed shortcut,
+sign it locally, share it into Shortcuts. No Mac, server, or Apple ID.
 
 [Download the latest unsigned IPA](https://github.com/dan1165/shortsign/releases/latest)
 
@@ -22,8 +22,8 @@ locally, share it into Shortcuts. No Mac, server, or Apple ID.
 The gear shows certificate status and fingerprint, and lets you reinstall the
 certificate at any time.
 
-Signed shortcuts import only on devices that trust the certificate. Files that
-already start with `AEA1` are signed and rejected.
+Signed shortcuts are extracted and re-signed with your local certificate. The
+result imports only on devices that trust the certificate.
 
 ## Public links
 
