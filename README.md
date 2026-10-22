@@ -39,7 +39,7 @@ own Apple-signed copy.
 
 GitHub Actions (`macos-26-intel`, xtool, Xcode 26) builds an unsigned IPA on
 every push to `main` and publishes a release. Local Linux builds need an Xcode
-SDK.
+SDK; use `./tools/local-build.sh` to build with the latest release version.
 
 ## Credits
 
