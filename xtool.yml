@@ -1,0 +1,4 @@
+version: 1
+bundleID: com.daniisaahir.shortsign
+infoPath: Info.plist
+iconPath: icon.png

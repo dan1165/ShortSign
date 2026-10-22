@@ -1,0 +1,10 @@
+*.swp
+*.o
+*.d
+*.so
+*.out
+*.a
+/test/test
+/tags
+/version.h
+/test/files/*-recompressed

@@ -1,0 +1,10 @@
+# Swift
+.build/
+.swiftpm/
+
+# xtool
+xtool/
+*.ipa
+
+# Local
+.DS_Store
