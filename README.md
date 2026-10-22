@@ -24,7 +24,8 @@ every device that will import the signed shortcut.**
 2. In ShortSign, tap **Share Certificate**, save it to Files, tap it and install
    the profile. Enable full trust in General › About › Certificate Trust Settings.
 3. Tap **Choose Shortcut File** and pick an unsigned `.shortcut`, `.wflow` or
-   plist.
+   plist. If the picker cannot select the file, paste an https URL in
+   **Or choose a URL** and tap **Download Shortcut**.
 4. Tap **Sign Shortcut**, then **Share Signed Shortcut** and choose Shortcuts.
 
 Unsigned inputs can be produced by Shortcuts exports on old iOS versions,

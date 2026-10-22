@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import SwiftUI
 import UIKit
@@ -20,6 +21,7 @@ struct RootView: View {
                 }
                 certificateSection
                 fileSection
+                urlSection
                 if model.summary != nil || model.isSigning {
                     signSection
                 }
@@ -31,7 +33,7 @@ struct RootView: View {
             .navigationTitle("ShortSign")
             .fileImporter(
                 isPresented: $isPicking,
-                allowedContentTypes: [.data]
+                allowedContentTypes: [.item]
             ) { result in
                 switch result {
                 case .success(let url):
@@ -100,6 +102,31 @@ struct RootView: View {
         }
     }
 
+    private var urlSection: some View {
+        Section {
+            TextField("https://example.com/My.shortcut", text: $model.urlText)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button {
+                model.download()
+            } label: {
+                HStack {
+                    Label("Download Shortcut", systemImage: "arrow.down.circle")
+                    Spacer()
+                    if model.isDownloading {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(!model.canDownload)
+        } header: {
+            Text("Or choose a URL")
+        } footer: {
+            Text("Fetches an unsigned .shortcut or plist over https. Useful when the file picker cannot select the file.")
+        }
+    }
+
     private var signSection: some View {
         Section {
             Button {
@@ -113,7 +140,7 @@ struct RootView: View {
                     }
                 }
             }
-            .disabled(model.summary == nil || model.isSigning)
+            .disabled(model.summary == nil || model.isSigning || model.isDownloading)
         } header: {
             Text("Step 3 — Sign")
         }
@@ -149,6 +176,14 @@ final class SignModel {
     var signedURL: URL?
     var isSigning = false
     var error: String?
+    var urlText = ""
+    var isDownloading = false
+
+    var canDownload: Bool {
+        !urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !isDownloading
+            && !isSigning
+    }
 
     func load(_ url: URL) {
         error = nil
@@ -164,6 +199,41 @@ final class SignModel {
             summary = try ShortcutSigner.summarize(data)
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    func download() {
+        let text = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            let url = URL(string: text),
+            let scheme = url.scheme?.lowercased(),
+            scheme == "https",
+            url.host != nil
+        else {
+            error = DownloadError.invalidURL.localizedDescription
+            return
+        }
+
+        error = nil
+        signedURL = nil
+        summary = nil
+        isDownloading = true
+        fileName = {
+            let last = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+            return last.isEmpty ? (url.host ?? "Remote shortcut") : last
+        }()
+
+        Task {
+            defer { isDownloading = false }
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    throw DownloadError.http(http.statusCode)
+                }
+                summary = try ShortcutSigner.summarize(data)
+            } catch {
+                self.error = error.localizedDescription
+            }
         }
     }
 
@@ -197,9 +267,22 @@ final class SignModel {
     }
 }
 
+private enum DownloadError: LocalizedError {
+    case invalidURL
+    case http(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            "Enter a valid https:// URL."
+        case .http(let status):
+            "The server returned HTTP \(status)."
+        }
+    }
+}
+
 /// UIActivityViewController so the certificate can be handed to Settings.
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
+struct ShareSheet: UIViewControllerRepresentable {    let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
