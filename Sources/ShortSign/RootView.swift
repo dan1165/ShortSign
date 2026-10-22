@@ -148,7 +148,7 @@ struct RootView: View {
 
     private var finePrint: some View {
         Section {
-            Text("Self-signed: shortcuts import only on devices that trust your certificate. Not for public sharing.")
+            Text("Self-signed: shortcuts import only on devices that trust your certificate. Not for public sharing. If import fails, check Settings › General › About › Certificate Trust Settings.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
