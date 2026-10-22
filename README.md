@@ -20,10 +20,26 @@ locally, share it into Shortcuts. No Mac, server, or Apple ID.
 Signed shortcuts import only on devices that trust the certificate. Files that
 already start with `AEA1` are signed and rejected.
 
+## Public links
+
+Once the shortcut is in Shortcuts, share it normally:
+
+1. Open the shortcut in Shortcuts.
+2. **Share → Copy iCloud Link**.
+3. Send the link — recipients don't need the ShortSign certificate.
+
+Shortcuts uploads its own Apple-signed copy to iCloud, so the public link works
+for anyone. The self-signed certificate is only needed for the initial import
+on your device.
+
+Tips: the link is public to anyone who has it, so don't include secrets.
+Recipients may need the apps or actions the shortcut uses, and creating a link
+requires being signed into iCloud.
+
 ## Limits
 
-- Self-signed and per-device. This is not Apple signing and not usable for
-  public or iCloud sharing.
+- Direct file sharing is self-signed and per-device. For a public link, import
+  the shortcut first, then use Shortcuts → Copy iCloud Link.
 - The bundled key is public by construction; only trust the certificate on
   devices you control.
 - iOS 17+. Re-sign files after updating from v1.0.2 or earlier — those builds
