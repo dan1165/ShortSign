@@ -1,6 +1,7 @@
 # Swift
 .build/
 .swiftpm/
+.sourcekit-lsp/
 
 # xtool
 xtool/
