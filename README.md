@@ -8,10 +8,13 @@ locally, share it into Shortcuts. No Mac, server, or Apple ID.
 ## Use
 
 1. Install the IPA with your sideloader.
-2. Tap **Share Certificate**, save it to Files, tap it and install the profile.
-   Enable full trust in Settings › General › About › Certificate Trust Settings.
+2. If the **Certificate** section appears, tap **Install Certificate**, save it
+   to Files, tap the profile, and enable full trust in Settings › General ›
+   About › Certificate Trust Settings. The section hides once the certificate is
+   trusted.
 3. Choose an unsigned `.shortcut`, `.wflow` or plist, or paste an https URL.
-4. Tap **Sign Shortcut**, then **Share Signed Shortcut** and choose Shortcuts.
+4. Tap **Sign Shortcut**. The share sheet opens automatically; choose
+   Shortcuts. If you cancel it, tap **Share Again**.
 
 Signed shortcuts import only on devices that trust the certificate. Files that
 already start with `AEA1` are signed and rejected.

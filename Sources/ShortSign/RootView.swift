@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 struct RootView: View {
     @State private var model = SignModel()
     @State private var isPicking = false
-    @State private var isSharingCertificate = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -19,14 +19,12 @@ struct RootView: View {
                             .foregroundStyle(.red)
                     }
                 }
-                certificateSection
-                fileSection
-                urlSection
-                if model.summary != nil || model.isSigning {
-                    signSection
+                if model.certificateTrusted == false {
+                    certificateSection
                 }
-                if let signedURL = model.signedURL {
-                    shareSection(signedURL)
+                shortcutSection
+                if model.summary != nil {
+                    actionSection
                 }
                 finePrint
             }
@@ -42,9 +40,15 @@ struct RootView: View {
                     model.error = error.localizedDescription
                 }
             }
-            .sheet(isPresented: $isSharingCertificate) {
-                if let certificate = ShortcutFile.certificate {
-                    ShareSheet(items: [certificate])
+            .sheet(item: $model.shareItem) { item in
+                ShareSheet(items: [item.url])
+            }
+            .task {
+                model.refreshCertificateTrust()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    model.refreshCertificateTrust()
                 }
             }
         }
@@ -52,132 +56,121 @@ struct RootView: View {
 
     private var header: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: "scissors")
-                    .font(.system(size: 40, weight: .semibold))
-                    .foregroundStyle(.tint)
-                Text("Sign shortcuts on your iPhone")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Sign shortcuts on this iPhone")
                     .font(.title2.bold())
-                Text("Turns an unsigned shortcut plist into a signed .shortcut. Everything happens on this device — no Mac, no server, no Apple ID.")
+                Text("On-device. No Mac, server or Apple ID.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
         }
     }
 
     private var certificateSection: some View {
         Section {
-            LabeledContent("Signing certificate", value: "Self-signed")
             Button {
-                isSharingCertificate = true
+                model.shareCertificate()
             } label: {
-                Label("Share Certificate", systemImage: "checkmark.seal")
+                Label("Install Certificate", systemImage: "checkmark.seal")
             }
-            .disabled(ShortcutFile.certificate == nil)
-            Text("Save the certificate to Files, tap it, then install the profile. Enable full trust in Settings › General › About › Certificate Trust Settings. Signed shortcuts only import on devices that trust this certificate.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         } header: {
-            Text("Step 1 — Trust the certificate")
+            Text("Certificate")
+        } footer: {
+            Text("Save it to Files, tap the profile, install it, then enable full trust in Settings › General › About › Certificate Trust Settings. This section disappears when the certificate is trusted.")
         }
     }
 
-    private var fileSection: some View {
+    private var shortcutSection: some View {
         Section {
+            if let summary = model.summary {
+                LabeledContent("Name", value: summary.name)
+                LabeledContent("Actions", value: "\(summary.actionCount)")
+            }
             Button {
                 isPicking = true
             } label: {
                 Label("Choose Shortcut File", systemImage: "doc.badge.plus")
             }
-            if let summary = model.summary {
-                LabeledContent("Name", value: summary.name)
-                LabeledContent("Actions", value: "\(summary.actionCount)")
-                LabeledContent("Source", value: model.fileName)
-            }
-        } header: {
-            Text("Step 2 — Pick a shortcut")
-        } footer: {
-            Text("Accepts an unsigned .shortcut, .wflow or plist file. Signed shortcuts cannot be re-signed.")
-        }
-    }
-
-    private var urlSection: some View {
-        Section {
-            TextField("https://example.com/My.shortcut", text: $model.urlText)
-                .keyboardType(.URL)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            Button {
-                model.download()
-            } label: {
-                HStack {
-                    Label("Download Shortcut", systemImage: "arrow.down.circle")
-                    Spacer()
+            HStack(spacing: 8) {
+                TextField("https://example.com/My.shortcut", text: $model.urlText)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button {
+                    model.download()
+                } label: {
                     if model.isDownloading {
                         ProgressView()
+                    } else {
+                        Image(systemName: "arrow.down.circle")
                     }
                 }
+                .buttonStyle(.borderless)
+                .disabled(!model.canDownload)
+                .accessibilityLabel("Download shortcut")
             }
-            .disabled(!model.canDownload)
         } header: {
-            Text("Or choose a URL")
+            Text("Shortcut")
         } footer: {
-            Text("Fetches an unsigned .shortcut or plist over https. Useful when the file picker cannot select the file.")
+            Text("Unsigned .shortcut, .wflow or plist. Already-signed files are rejected.")
         }
     }
 
-    private var signSection: some View {
+    private var actionSection: some View {
         Section {
-            Button {
-                model.sign()
-            } label: {
-                HStack {
-                    Label("Sign Shortcut", systemImage: "signature")
-                    Spacer()
-                    if model.isSigning {
-                        ProgressView()
+            if model.signedURL == nil {
+                Button {
+                    model.sign()
+                } label: {
+                    HStack {
+                        Label("Sign Shortcut", systemImage: "signature")
+                        Spacer()
+                        if model.isSigning {
+                            ProgressView()
+                        }
                     }
                 }
+                .disabled(model.isSigning || model.isDownloading)
+            } else {
+                Button {
+                    model.shareSigned()
+                } label: {
+                    Label("Share Again", systemImage: "square.and.arrow.up")
+                }
             }
-            .disabled(model.summary == nil || model.isSigning || model.isDownloading)
-        } header: {
-            Text("Step 3 — Sign")
-        }
-    }
-
-    private func shareSection(_ url: URL) -> some View {
-        Section {
-            ShareLink(item: url) {
-                Label("Share Signed Shortcut", systemImage: "square.and.arrow.up")
+        } footer: {
+            if model.signedURL != nil {
+                Text("Choose Shortcuts, or save the file to Files and tap it.")
             }
-            Label("Tap Share and choose Shortcuts, or save it to Files and tap the file.", systemImage: "info.circle")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        } header: {
-            Text("Signed")
         }
     }
 
     private var finePrint: some View {
         Section {
-            Text("ShortSign does not use Apple's signing service. A self-signed shortcut is importable only after the ShortSign certificate is trusted on the receiving device, so do not use it for public iCloud links. The signing key is stored inside the app.")
+            Text("Self-signed: shortcuts import only on devices that trust your certificate. Not for public sharing.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
 }
 
+struct ShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 @MainActor
 @Observable
 final class SignModel {
-    var fileName = ""
     var summary: ShortcutSigner.Summary?
     var signedURL: URL?
+    var shareItem: ShareItem?
     var isSigning = false
     var error: String?
     var urlText = ""
     var isDownloading = false
+    var certificateTrusted: Bool?
 
     var canDownload: Bool {
         !urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -185,18 +178,39 @@ final class SignModel {
             && !isSigning
     }
 
+    func refreshCertificateTrust() {
+        Task {
+            let trusted = await Task.detached {
+                ShortcutSigner.isCertificateTrusted()
+            }.value
+            certificateTrusted = trusted
+        }
+    }
+
+    func shareCertificate() {
+        guard let certificate = ShortcutFile.certificate else {
+            error = "The bundled certificate is missing."
+            return
+        }
+        shareItem = ShareItem(url: certificate)
+    }
+
+    func shareSigned() {
+        if let signedURL {
+            shareItem = ShareItem(url: signedURL)
+        }
+    }
+
     func load(_ url: URL) {
         error = nil
         signedURL = nil
         summary = nil
-        fileName = url.lastPathComponent
 
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
         do {
-            let data = try Data(contentsOf: url)
-            summary = try ShortcutSigner.summarize(data)
+            summary = try ShortcutSigner.summarize(Data(contentsOf: url))
         } catch {
             self.error = error.localizedDescription
         }
@@ -206,11 +220,10 @@ final class SignModel {
         let text = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             let url = URL(string: text),
-            let scheme = url.scheme?.lowercased(),
-            scheme == "https",
+            url.scheme?.lowercased() == "https",
             url.host != nil
         else {
-            error = DownloadError.invalidURL.localizedDescription
+            error = "Enter a valid https:// URL."
             return
         }
 
@@ -218,17 +231,13 @@ final class SignModel {
         signedURL = nil
         summary = nil
         isDownloading = true
-        fileName = {
-            let last = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
-            return last.isEmpty ? (url.host ?? "Remote shortcut") : last
-        }()
 
         Task {
             defer { isDownloading = false }
             do {
                 let (data, response) = try await URLSession.shared.data(from: url)
                 if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                    throw DownloadError.http(http.statusCode)
+                    throw HTTPError(status: http.statusCode)
                 }
                 summary = try ShortcutSigner.summarize(data)
             } catch {
@@ -249,7 +258,9 @@ final class SignModel {
                 let data = try await Task.detached {
                     try ShortcutSigner.sign(summary.plist)
                 }.value
-                signedURL = try write(data, name: summary.name)
+                let url = try write(data, name: summary.name)
+                signedURL = url
+                shareItem = ShareItem(url: url)
             } catch {
                 self.error = error.localizedDescription
             }
@@ -267,22 +278,17 @@ final class SignModel {
     }
 }
 
-private enum DownloadError: LocalizedError {
-    case invalidURL
-    case http(Int)
+private struct HTTPError: LocalizedError {
+    let status: Int
 
     var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            "Enter a valid https:// URL."
-        case .http(let status):
-            "The server returned HTTP \(status)."
-        }
+        "The server returned HTTP \(status)."
     }
 }
 
-/// UIActivityViewController so the certificate can be handed to Settings.
-struct ShareSheet: UIViewControllerRepresentable {    let items: [Any]
+/// UIActivityViewController so ShortSign can hand files to other apps.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)

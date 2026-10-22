@@ -1,5 +1,6 @@
 import CShortcutSign
 import Foundation
+import Security
 
 /// Parses an unsigned shortcut plist and signs it with the bundled self-signed
 /// identity. Signing needs no network, Apple ID or Mac.
@@ -52,6 +53,33 @@ enum ShortcutSigner {
         )
     }
 
+    /// True when the bundled root certificate is installed and trusted, so the
+    /// signed shortcuts will import.
+    static func isCertificateTrusted() -> Bool {
+        guard
+            let authURL = Bundle.module.url(forResource: "auth", withExtension: "plist"),
+            let data = try? Data(contentsOf: authURL),
+            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+            let chain = plist["SigningCertificateChain"] as? [Data],
+            chain.count >= 2,
+            let leaf = SecCertificateCreateWithData(nil, chain[0] as CFData),
+            let root = SecCertificateCreateWithData(nil, chain[1] as CFData)
+        else {
+            return false
+        }
+
+        let policy = SecPolicyCreateSSL(true, nil)
+        var trust: SecTrust?
+        guard
+            SecTrustCreateWithCertificates([leaf, root] as CFArray, policy, &trust) == errSecSuccess,
+            let trust
+        else {
+            return false
+        }
+        _ = SecTrustSetNetworkFetchAllowed(trust, false)
+        return SecTrustEvaluateWithError(trust, nil)
+    }
+
     static func sign(_ plist: Data) throws -> Data {
         guard
             let key = Bundle.module.url(forResource: "key", withExtension: "dat"),
@@ -85,8 +113,7 @@ enum ShortcutSigner {
     }
 }
 
-/// `UTType.data` keeps the picker useful for `.shortcut`, `.plist` and `.wflow`
-/// files, which have no public type identifier.
+/// The bundled root certificate, shared with Settings to enable trust.
 enum ShortcutFile {
     static let certificate: URL? = Bundle.module.url(forResource: "ShortSign", withExtension: "cer")
 }
