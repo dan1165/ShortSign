@@ -4,6 +4,10 @@ Sign Apple Shortcuts on a stock iPhone. No Mac, server, or Apple ID.
 
 [Download the latest unsigned IPA](https://github.com/dan1165/shortsign/releases/latest)
 
+[![ShortSign demo](assets/ShortSign.gif)](assets/ShortSign.mp4)
+
+*Install certificate → pick a shortcut → sign → share.*
+
 ## Use
 
 1. Install the IPA with your sideloader.
