@@ -18,6 +18,10 @@ Because the signing key is ours and not Apple's, the shortcut imports only on
 devices that trust the ShortSign root certificate. **Install the certificate on
 every device that will import the signed shortcut.**
 
+The vendored `sign.c` is patched: it writes the per-segment SHA-256 checksum and
+handles multi-segment archives. Upstream leaves the checksum field stale, which
+makes Shortcuts reject the file with "Failed to extract shortcut data".
+
 ## Use
 
 1. Install the IPA with your sideloader.

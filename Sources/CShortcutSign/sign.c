@@ -320,18 +320,6 @@ int resign_shortcut_prologue(uint8_t *signedShortcut, void *privateKey, size_t p
     return 0;
 }
 
-struct lss_aea_segment_header {
-    uint32_t originalSize;
-    uint32_t compressedSize;
-    /* size: based on rootHeader.checksumAlgorithm
-       0 for checksumAlgorithm 0
-       8 for checksumAlgorithm 1 (Murmur64 Hash)
-       32 for checksumAlgorithm 2 (SHA-256)
-     */
-    uint8_t* hash;
-    uint8_t segmentHMAC[0x20];
-};
-
 int resign_shortcut_with_new_aa(uint8_t **signedShortcut, void *archivedDir, size_t archivedDirSize, size_t *newSize, void *privateKey) {
     /* TODO: This code is really hard to understand */
     /* In the future, neo_aea_sign implemented in libNeoAppleArchive, use that */
@@ -400,10 +388,20 @@ int resign_shortcut_with_new_aa(uint8_t **signedShortcut, void *archivedDir, siz
     size_t resignedShortcutSize = authDataSize + 0x13c + clusterSegmentHeadersSize + clusterHmacsSize;
     size_t sizeLeft = archivedDirSize;
     size_t maxSegmentSize = (size_t) *(uint32_t *)(_signedShortcut + authDataSize + 0xec + 16);
+    if (maxSegmentSize == 0) {
+        fprintf(stderr, "libshortcutsign: invalid segment size\n");
+        return -1;
+    }
+    size_t segmentCount = (archivedDirSize + maxSegmentSize - 1) / maxSegmentSize;
+    if (segmentCount > segmentsPerCluster) {
+        fprintf(stderr, "libshortcutsign: shortcut needs %zu segments, template supports %u\n",
+                segmentCount, segmentsPerCluster);
+        return -1;
+    }
     uint8_t *segmentData = _signedShortcut + resignedShortcutSize;
     size_t mallocSizeLeft = archivedDirSize;
     uint8_t *originalFileSegment = archivedDir;
-    struct lss_aea_segment_header *segmentHeader = (void *)(_signedShortcut + authDataSize + 0x13c);
+    uint8_t *segmentHeader = _signedShortcut + authDataSize + 0x13c;
     uint8_t *segmentHMAC = _signedShortcut + authDataSize + 0x13c + clusterSegmentHeadersSize + 32;
     while (sizeLeft) {
         size_t segmentSize = maxSegmentSize;
@@ -427,8 +425,15 @@ int resign_shortcut_with_new_aa(uint8_t **signedShortcut, void *archivedDir, siz
             compressedSize = segmentSize;
             memcpy(segmentData, originalFileSegment, segmentSize);
         }
-        segmentHeader->originalSize = segmentSize;
-        segmentHeader->compressedSize = compressedSize;
+        *(uint32_t *)(segmentHeader + 0) = (uint32_t)segmentSize;
+        *(uint32_t *)(segmentHeader + 4) = (uint32_t)compressedSize;
+
+        /* AEA stores a SHA-256 checksum of the uncompressed segment right
+           after the two size fields. libshortcutsign leaves this stale. */
+        unsigned int checksumLength = 0;
+        EVP_Digest(originalFileSegment, segmentSize,
+                   segmentHeader + 8, &checksumLength,
+                   EVP_sha256(), NULL);
 
         uint8_t aea_sk_ctx[10];
         memcpy(aea_sk_ctx, "AEA_SK", 6);
