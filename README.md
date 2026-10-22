@@ -14,13 +14,15 @@ Sign Apple Shortcuts on a stock iPhone. No Mac, server, or Apple ID.
 2. If the **Certificate** section appears, tap **Install Certificate**, install
    the profile, then enable full trust in Settings › General › About ›
    Certificate Trust Settings. The section hides automatically once installed.
+   If it stays or imports fail, turn off **Show setup on main screen** in
+   Settings.
 3. Pick one or more unsigned or signed shortcuts, paste an https URL, or open a
    file from Files. Signed shortcuts are extracted and re-signed.
 4. Tap **Sign Shortcut** (or **Sign N Shortcuts**). The share sheet opens; choose
    Shortcuts. If you cancel, tap **Share Again**.
 
-The gear shows certificate status and fingerprint, lets you reinstall the
-certificate, and shows the app version.
+The gear shows certificate status, validity and fingerprint, lets you reinstall
+the certificate or hide the setup section, and shows the app version.
 
 ## Public links
 
@@ -31,8 +33,8 @@ own Apple-signed copy.
 ## Limits
 
 - Direct file sharing is self-signed and per-device.
-- The bundled signing key is public; only trust the certificate on devices you
-  control.
+- The signing key and certificate are generated on this device. Reinstalling the
+  app creates a new identity, so install and trust the new certificate.
 - iOS 17+.
 
 ## Build

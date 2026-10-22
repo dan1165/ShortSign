@@ -4,7 +4,7 @@ import Foundation
 import Security
 
 /// Parses a shortcut plist, extracts signed shortcuts, and signs with the
-/// bundled self-signed identity. Everything is local.
+/// identity generated for this install. Everything is local.
 enum ShortcutSigner {
     struct Summary: Sendable {
         let name: String
@@ -16,12 +16,13 @@ enum ShortcutSigner {
     struct CertificateDetails: Sendable {
         let subject: String
         let fingerprint: String
+        let notBefore: Date?
+        let notAfter: Date?
     }
 
     enum SignError: LocalizedError {
         case notAShortcut
         case extractFailed
-        case missingIdentity
         case failed
 
         var errorDescription: String? {
@@ -30,8 +31,6 @@ enum ShortcutSigner {
                 "That file is not a shortcut plist."
             case .extractFailed:
                 "Couldn't extract the shortcut data."
-            case .missingIdentity:
-                "The bundled signing identity is missing."
             case .failed:
                 "Signing failed."
             }
@@ -73,13 +72,11 @@ enum ShortcutSigner {
         return Data(bytes: output, count: outputSize)
     }
 
-    /// True when the bundled root certificate is installed in the trust store.
-    /// iOS has no public API for reading the full-trust toggle, so try the
-    /// policies the toggle can apply to and treat a chain success as installed.
+    /// True when this install's root certificate is in the trust store.
     static func isCertificateTrusted() -> Bool {
         guard
-            let url = ShortcutFile.certificate,
-            let data = try? Data(contentsOf: url),
+            let identity = try? SigningIdentityStore.shared.current(),
+            let data = try? Data(contentsOf: identity.certificateURL),
             let root = SecCertificateCreateWithData(nil, data as CFData)
         else {
             return false
@@ -103,8 +100,8 @@ enum ShortcutSigner {
 
     static func certificateDetails() -> CertificateDetails? {
         guard
-            let url = ShortcutFile.certificate,
-            let data = try? Data(contentsOf: url),
+            let identity = try? SigningIdentityStore.shared.current(),
+            let data = try? Data(contentsOf: identity.certificateURL),
             let certificate = SecCertificateCreateWithData(nil, data as CFData)
         else {
             return nil
@@ -113,18 +110,27 @@ enum ShortcutSigner {
         let fingerprint = SHA256.hash(data: SecCertificateCopyData(certificate) as Data)
             .map { String(format: "%02X", $0) }
             .joined(separator: ":")
-        return CertificateDetails(subject: subject, fingerprint: fingerprint)
+
+        var notBefore: Int64 = 0
+        var notAfter: Int64 = 0
+        let dateStatus = data.withUnsafeBytes { bytes in
+            shorts_certificate_dates(bytes.baseAddress, data.count, &notBefore, &notAfter)
+        }
+        let start = dateStatus == 0 ? Date(timeIntervalSince1970: TimeInterval(notBefore)) : nil
+        let end = dateStatus == 0 ? Date(timeIntervalSince1970: TimeInterval(notAfter)) : nil
+
+        return CertificateDetails(
+            subject: subject,
+            fingerprint: fingerprint,
+            notBefore: start,
+            notAfter: end
+        )
     }
 
     static func sign(_ plist: Data) throws -> Data {
-        guard
-            let key = Bundle.module.url(forResource: "key", withExtension: "dat"),
-            let auth = Bundle.module.url(forResource: "auth", withExtension: "plist")
-        else {
-            throw SignError.missingIdentity
-        }
-        let keyData = try Data(contentsOf: key)
-        let authData = try Data(contentsOf: auth)
+        let identity = try SigningIdentityStore.shared.current()
+        let keyData = try Data(contentsOf: identity.keyURL)
+        let authData = try Data(contentsOf: identity.authURL)
 
         var output: UnsafeMutableRawPointer?
         var outputSize = 0
@@ -149,7 +155,9 @@ enum ShortcutSigner {
     }
 }
 
-/// The bundled root certificate, shared with Settings to enable trust.
+/// This install's root certificate, shared with Settings to enable trust.
 enum ShortcutFile {
-    static let certificate: URL? = Bundle.module.url(forResource: "ShortSign", withExtension: "cer")
+    static var certificate: URL? {
+        try? SigningIdentityStore.shared.current().certificateURL
+    }
 }

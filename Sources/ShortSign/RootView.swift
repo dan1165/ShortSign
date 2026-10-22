@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct RootView: View {
     @State private var model = SignModel()
     @State private var isPicking = false
+    @AppStorage("showCertificateSetup") private var showCertificateSetup = true
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -19,7 +20,7 @@ struct RootView: View {
                             .foregroundStyle(.red)
                     }
                 }
-                if model.certificateTrusted == false {
+                if model.certificateTrusted == false && showCertificateSetup {
                     certificateSection
                 }
                 shortcutsSection
@@ -187,7 +188,7 @@ struct RootView: View {
 
     private var finePrint: some View {
         Section {
-            Text("Self-signed: shortcuts import only on devices that trust your certificate. For public sharing, import first, then use Shortcuts → Copy iCloud Link.")
+            Text("Self-signed: shortcuts import only on devices that trust your certificate. The key is generated on this device. For public sharing, import first, then use Shortcuts → Copy iCloud Link.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -242,7 +243,7 @@ final class SignModel {
 
     func shareCertificate() {
         guard let certificate = ShortcutFile.certificate else {
-            error = "The bundled certificate is missing."
+            error = "The signing certificate is missing."
             return
         }
         shareItem = ShareItem(urls: [certificate])

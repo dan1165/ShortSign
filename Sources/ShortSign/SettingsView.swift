@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @State private var trusted: Bool?
     @State private var shareItem: ShareItem?
+    @AppStorage("showCertificateSetup") private var showCertificateSetup = true
     @Environment(\.scenePhase) private var scenePhase
 
     private let details = ShortcutSigner.certificateDetails()
@@ -13,6 +14,13 @@ struct SettingsView: View {
                 LabeledContent("Status", value: status)
                 if let details {
                     LabeledContent("Subject", value: details.subject)
+                    if let notAfter = details.notAfter {
+                        LabeledContent("Valid until", value: notAfter.formatted(date: .abbreviated, time: .omitted))
+                        if notAfter < Date() {
+                            Text("Certificate expired")
+                                .foregroundStyle(.red)
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("SHA-256")
                             .font(.caption)
@@ -27,10 +35,11 @@ struct SettingsView: View {
                 } label: {
                     Label("Install Certificate", systemImage: "checkmark.seal")
                 }
+                Toggle("Show setup on main screen", isOn: $showCertificateSetup)
             } header: {
                 Text("Certificate")
             } footer: {
-                Text("Enable full trust in Settings › General › About › Certificate Trust Settings.")
+                Text("Enable full trust in Settings › General › About › Certificate Trust Settings. The certificate and key are generated on this device.")
             }
 
             Section("App") {

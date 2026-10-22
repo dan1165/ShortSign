@@ -41,12 +41,7 @@ let package = Package(
         .target(
             name: "ShortSign",
             dependencies: ["CShortcutSign"],
-            path: "Sources/ShortSign",
-            resources: [
-                .copy("Resources/auth.plist"),
-                .copy("Resources/key.dat"),
-                .copy("Resources/ShortSign.cer"),
-            ]
+            path: "Sources/ShortSign"
         ),
     ]
 )
