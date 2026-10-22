@@ -11,6 +11,11 @@ int shorts_sign(
     const void *authData, size_t authDataSize,
     void **out, size_t *outSize);
 
+/// Extracts the workflow plist from a signed AEA1 shortcut. Returns 0 on
+/// success and a malloc'd buffer in `out` (free with shorts_free).
+int shorts_extract(const void *signedShortcut, size_t signedShortcutSize,
+                   void **out, size_t *outSize);
+
 void shorts_free(void *pointer);
 
 #endif

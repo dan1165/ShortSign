@@ -18,8 +18,6 @@ let package = Package(
             dependencies: ["OpenSSL"],
             path: "Sources/CShortcutSign",
             exclude: [
-                "neo/neo_aea_archive.c",
-                "neo/asn1parse.c",
                 "neo/compression/lzfse/src/lzfse_main.c",
                 "neo/compression/lzfse/LICENSE",
                 "neo/compression/lzfse/README.md",

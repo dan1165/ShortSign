@@ -13,9 +13,14 @@ locally, share it into Shortcuts. No Mac, server, or Apple ID.
    About › Certificate Trust Settings. ShortSign detects the installed
    certificate and hides the section automatically. If it stays or imports fail,
    re-check the trust toggle.
-3. Choose an unsigned `.shortcut`, `.wflow` or plist, or paste an https URL.
-4. Tap **Sign Shortcut**. The share sheet opens automatically; choose
-   Shortcuts. If you cancel it, tap **Share Again**.
+3. Choose one or more unsigned or signed `.shortcut`, `.wflow` or plist files,
+   paste an https URL, or open a file in ShortSign from Files. Signed inputs are
+   extracted and re-signed.
+4. Tap **Sign Shortcut** (or **Sign N Shortcuts**). The share sheet opens
+   automatically; choose Shortcuts. If you cancel it, tap **Share Again**.
+
+The gear shows certificate status and fingerprint, and lets you reinstall the
+certificate at any time.
 
 Signed shortcuts import only on devices that trust the certificate. Files that
 already start with `AEA1` are signed and rejected.
