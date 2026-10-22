@@ -2,6 +2,7 @@
 .build/
 .swiftpm/
 .sourcekit-lsp/
+.bsp/
 
 # xtool
 xtool/
